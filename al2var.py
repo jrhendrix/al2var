@@ -1,9 +1,10 @@
 '''
-FILE:	bar_script.py
+FILE:	al2var.py
 AUTHOR:	J.R. Hendrix
 URL: 	http://stronglab.org
 DESC:	This script aligns reads (paired-end short, single-end short, and log)
 		to a referece assembly.
+RECQ:	
 
 ACKNOWLEDGMENTS:
 		Sean Beagle - Provided basic alignment workflow
@@ -255,20 +256,20 @@ def configure(args, ref_id, samp_id):
 	LOG.setLevel(logging.DEBUG)
 	#formatter = logging.Formatter('%(asctime)s:%(levelname)s:%(message)s')
 	formatter = logging.Formatter('%(message)s')
-	LOG_File = OUTDIR.join("wrapper.log")
+	LOG_File = OUTDIR.join("al2var.log")
 	file_handler = logging.FileHandler(LOG_File)
 	file_handler.setFormatter(formatter)
 
 	LOG.addHandler(file_handler)
 
-	intro = 'Running Bowtie2 Alignment Runner script\n'
+	intro = 'Running Al2Var script\n'
 	LOG.info(intro)
 
 	LOG.info('CONFIGURATION...')
 	LOG.info(f'Aligning {samp_id} to {ref_id}.\n')
 	LOG.info(f'OUTDIR {OUTDIR.path}')
 
-	return basename
+	return basename, LOG_File
 
 
 def make_bowtie_db(args, reference, ref_id):
@@ -340,6 +341,7 @@ def run_pipeline(args, basename, reference, read_arr):
 
 	
 	# MAP ASSEMBLY TO REFERENCE (CREATE SAM FILE)
+	
 	LOG.info("MAPPING TO REFERENCE GENOME...")
 	try:
 		num_mm = str(args.num_mismatch)
@@ -367,26 +369,27 @@ def run_pipeline(args, basename, reference, read_arr):
 			"-S", sam_file,
 			"-N", num_mm,
 			"-L", len_seed]	
-		print(command)
+		#print(command)
 		run_subprocess(args, command)
 		LOG.info('... DONE')
 	except Exception as e:
 		LOG.warning(f"... FAILED : {e}")
 		exit(e)
+	
 
 
-
+	
 	# CONVERT SAM --> BAM
 	try:
 		LOG.info("CONVERTING SAM FILE TO BAM FILE...")
 		command = ['samtools', 'view', sam_file, '-u', '-o', bam_file]
+		#print(command)
 		run_subprocess(args, command)
 		LOG.info('... DONE')
 	except Exception as e:
 		LOG.warning(f"... FAILED : {e}")
 		exit(e)
-
-
+	
 	# SORT BAM FILE
 	try:
 		LOG.info("SORTING BAM FILE...")
@@ -407,36 +410,39 @@ def run_pipeline(args, basename, reference, read_arr):
 	except Exception as e:
 		LOG.warning(f"... FAILED : {e}")
 		exit(e)	
-
-
+	
+	
 	# CONVERT SORTED BAM --> MPILEUP
 	try:
 		LOG.info("CONVERTING SORTED BAM FILE TO MPILEUP FILE...")
 		command = [
-			'samtools', 'mpileup', '-u', '-t', 'DP', '-t', 'AD', '-t', 'ADF', '-t', 'ADR', '-f',
-			reference.path, sorted_bam_file, '-o', mpileup_file]
+			'samtools', 'mpileup', '-u', '-t', 'DP', '-t', 'AD', '-t', 'ADF', '-t', 'ADR',
+			'-f', reference.path, '-o', mpileup_file, sorted_bam_file]
+		#print(command)
 		run_subprocess(args, command)
 		LOG.info('... DONE')
 	except Exception as e:
 		LOG.warning(f"... FAILED : {e}")
 		exit(e)
 
-
+	
 	# CONVERT MPILEUP --> VCF
 	try:
 		LOG.info("CONVERTING MPILEUP FILE TO VCF FILE...")
 		command = ['bcftools', 'call', '-c', mpileup_file, '-o', vcf_file]
+		#print(command)
 		run_subprocess(args, command)
 		LOG.info('... DONE')
 	except Exception as e:
 		LOG.warning(f"... FAILED : {e}")
 		exit(e)
-
+	
 
 	# FILTER VCF
 	try:
 		LOG.info("FILTERING VCF FILE...")
-		script = "/Strong/proj/shared_code/filter_cf_file_4x_depth.pl"
+		#script = "/Strong/proj/shared_code/filter_cf_file_4x_depth.pl"
+		script = "filter_cf_file_4x_depth.pl"
 		command = ['perl', script, '-i', vcf_file, '-o', filtered_vcf_file]
 
 		# Run subprocess
@@ -519,47 +525,11 @@ def run_pipeline(args, basename, reference, read_arr):
 	except Exception as e:
 		LOG.warning(f"... FAILED : {e}")
 		exit(e)
-	
-	# COUNTING VARs
-	'''
-	count = 0
-	try:
-		LOG.info("COUNTING VARs...")
-		f = open(var_vcf_file, 'r')
-		for l in f:
-			if l.startswith('#'):
-				continue
-			else:
-				count = count + 1
-		f.close()
-		LOG.info(f"\tNUMBER OF VARIANTS: {numVar}")
-		LOG.info('... DONE')
-	except Exception as e:
-		LOG.warning(f"... FAILED : {e}")
-		exit(e)
-	'''
-	# COUNTING VARs
-	'''
-	TODO: Update command to ignore lines containing comments
-	try:
-		LOG.info("COUNTING VARs...")
 
-		command = ['wc', '-l', var_vcf_file]
-
-		# GET NUMBER OF VARs
-		(stdout, stderr) = subprocess.Popen(command, stdout=PIPE, stderr=PIPE).communicate()
-		numVar = str(stdout).split()[0].replace("b'", "")
-
-		LOG.info(f"\tNUMBER OF VARIANTS: {numVar}")
-		LOG.info('... DONE')
-	except Exception as e:
-		LOG.warning(f"... FAILED : {e}")
-		exit(e)
-	'''
+	return(v)
 
 
-
-def return_align_rate(args):
+def return_align_rate(args, LOG_File):
 	''' Extracts and returns the Bowtie reported Overall Alignment Rate '''
 
 	command = ['grep', 'alignment', LOG_File]
@@ -572,81 +542,67 @@ def return_align_rate(args):
 	return alignRate
 
 
+def report_stats(args, aR, vR):
+	fname = '.'.join((args.savename, 'txt'))
+	outfile = '/'.join((OUTDIR.path, fname))
+	f1 = open(outfile, 'w')
+
+	if aR is not None:
+		val = str(aR).strip().split(' ')[0]
+	else:
+		val = 'Could not be calculated'
+	entry = ' '.join(('Alignment rate:', val))+'\n'
+	f1.write(entry)
+
+	if vR is not None:
+		val = ''.join((str(vR), '/100,000 bases'))
+	else:
+		val = 'Could not be calculated'
+	entry = ' '.join(('Variant rate:', val))
+	f1.write(entry)
+
+	f1.close()
+
+
 def main(program):
 	cwd = os.getcwd()
 
 	# PARSER : ROOT
-	parent_parser = argparse.ArgumentParser(prog='bar_script', add_help=False)
+	parent_parser = argparse.ArgumentParser(prog='al2var', add_help=False)
+	parent_parser.add_argument('-1', '--pair1', help='fwd trimmed paired-end reads to assemble', required=True)
+	parent_parser.add_argument('-2', '--pair2', help='rev trimmed paired-end reads to assemble', required=True)
+	parent_parser.add_argument('-c', '--clearnup', help='Enable automatic clearnup of intermediary files', default=False, action='store_true')
 	parent_parser.add_argument('-l', '--length_seed', default=22, help='Sets length of seed. Smaller values increase sensitivity and runtime', type=int)
-	parent_parser.add_argument('-mk_off', '--make_db_off', default=False, action='store_true', help='Disable make Bowtie database function.')
-	parent_parser.add_argument('-mod', '--module_load', default=False, action='store_true', help='Enable module load function.')
+	#parent_parser.add_argument('-mk_off', '--make_db_off', default=False, action='store_true', help='Disable make Bowtie database function.')
+	#parent_parser.add_argument('-mod', '--module_load', default=False, action='store_true', help='Enable module load function.')
 	parent_parser.add_argument('-n', '--num_mismatch', default=0, help='Number of mismatches allowed in the seed sequence. Setting to 1 increases sensitivity and runtime', choices=['0','1'])
-	parent_parser.add_argument('-o', '--output_directory', default='bowtie', help='Prefix of output directory', type=str)
+	parent_parser.add_argument('-o', '--output_directory', default='out_al2var', help='Prefix of output directory', type=str)
 	parent_parser.add_argument('-p', '--output_path', default=cwd, help='Path to output', type=str)
-	parent_parser.add_argument('-ref_dir', '--reference_directory', default=None, help='Reference Directory', type=str)
-	parent_parser.add_argument('-ref', '--reference_sequence', default=None, help='Reference sequence', type=str)
-	parent_parser.add_argument('-rate', '--report_rate', default=False, action='store_true', help='Return the alignment rate')
+	#parent_parser.add_argument('-ref_dir', '--reference_directory', default=None, help='Reference Directory', type=str)
+	parent_parser.add_argument('-r', '--reference', default=None, help='Reference sequence', type=str)
+	#parent_parser.add_argument('-rate', '--report_rate', default=False, action='store_true', help='Return the alignment rate')
+	parent_parser.add_argument('-s', '--savename', default='report', help='Savename for report file.')	
 	subparsers = parent_parser.add_subparsers(help='sub-command help')
-
-	# PARSER : BOWTIE2_UNPAIRED
-	bowUn = subparsers.add_parser('single', help='Align FASTQ to reference alignment', parents=[parent_parser])
-	bowUn.add_argument('-samp', '--sample', help='file containing unpaired reads to be aligned (FASTQ)', required=True)
-
-	# PARSER : BOWTIE2_PAIRED
-	bowPair = subparsers.add_parser('paired', help='Align FASTQ to reference alignment', parents=[parent_parser])
-	bowPair.add_argument('-1', '--pair1', help='fwd trimmed paired-end reads to assemble', required=True)
-	bowPair.add_argument('-2', '--pair2', help='rev trimmed paired-end reads to assemble', required=True)
 
 	args = parent_parser.parse_args()
 
-	# DETERMINE REFERENCE
-	'''
-	if args.make_db_off == False:
-		if args.reference_sequence != None:
-			reference = Fasta(args.reference_sequence)
-			ref_id = reference.filename.split('.')[0]
-		else:
-			args.make_db_off = True
-	if args.make_db_off == True:
-		if args.reference_directory != None:
-			ref_dir = Dir(args.reference_directory)
-			ref_id = ref_dir.dirnames
-		else:
-			print('ERROR. Specify either a reference sequence or directory.')
-			exit()	
-
-	'''
 	reference = Fasta(args.reference_sequence)
 	ref_id = reference.filename.split('.')[0]
 
 
 	# HANDLE PAIRED READS
-	if program == 'paired':
-		pair1 = Fastq(args.pair1)
-		pair2 = Fastq(args.pair2)
-		samp_id = pair1.filename.split('-pair1')[0]
+	pair1 = Fastq(args.pair1)
+	pair2 = Fastq(args.pair2)
+	samp_id = pair1.filename.split('-pair1')[0]
 
-		# CONFIGURE
-		basename = configure(args, ref_id, samp_id)
-		LOG.info(f'REFERENCE : {reference.filename}')
-		LOG.info(f'SAMPLE FWD: {pair1.filename}')
-		LOG.info(f'SAMPLE RVS: {pair2.filename}\n')
+	# CONFIGURE
+	basename, LOG_File = configure(args, ref_id, samp_id)
+	LOG.info(f'REFERENCE : {reference.filename}')
+	LOG.info(f'SAMPLE FWD: {pair1.filename}')
+	LOG.info(f'SAMPLE RVS: {pair2.filename}\n')
 
-		# COLLECT SAMPLES
-		sample_arr = [pair1, pair2]
-
-	# HANDLE UNPAURED READS
-	if program == 'single':
-		reads = Fastq(args.sample)
-		samp_id = reads.filename.split(".")[0]
-
-		# CONFIGURE
-		basename = configure(args, ref_id, samp_id)
-		LOG.info(f'REFERENCE: {reference.filename}')
-		LOG.info(f'SAMPLE   : {reads.filename}\n')
-
-		# COLLECT SAMPLES
-		sample_arr = [reads]
+	# COLLECT SAMPLES
+	sample_arr = [pair1, pair2]
 
 
 	# SET UP REFERENCE
@@ -655,12 +611,16 @@ def main(program):
 
 
 	# RUN ALIGNMENT PIPELINE
-	run_pipeline(args, basename, reference, sample_arr)
+	var_rate = run_pipeline(args, basename, reference, sample_arr)
 
-	if args.report_rate == True:
-		align_rate = return_align_rate(args)
-		LOG.info(f'ALIGNMENT RATE: {align_rate}')
+	#if args.report_rate == True:
+	align_rate = return_align_rate(args, LOG_File)
+	#	LOG.info(f'ALIGNMENT RATE: {align_rate}')
 	
+	report_stats(args, align_rate, var_rate)
+
+	## TO DO
+	# CLEAN UP INTERMEDIARY FILES
 
 
 if __name__== "__main__":
