@@ -1,6 +1,6 @@
 # Al2var
 
-A tool to calculate the error rate of a bacterial assembly using paired-end Illumina reads. 
+A tool to estimate the error rate of a bacterial assembly using paired-end Illumina reads. 
 
 ## Introduction
 
@@ -13,7 +13,7 @@ A tool to calculate the error rate of a bacterial assembly using paired-end Illu
 * samtools
 
 ### Installation
-Clone from GitHub repository. If accessing code from GitHub, it is reccomended to install dependencies in a conda environment.
+Clone from GitHub repository. If accessing code from GitHub, it is reccomended but not required to install dependencies in a conda environment.
 
 ## Usage
 As input, Al2var takes a genome assembly file in (.fasta format) and paired end reads (.fastq format).
