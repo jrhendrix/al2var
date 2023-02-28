@@ -2,14 +2,13 @@
 FILE:	al2var.py
 AUTHOR:	J.R. Hendrix
 URL: 	http://stronglab.org
-DESC:	This script aligns reads (paired-end short, single-end short, and log)
-		to a referece assembly.
-RECQ:	
+DESC:	This script aligns paired-end reads to a referece assembly.
+		Reports alignment rate
+		Reports variant (estimated error) rate
+RECQ:	bcftools, bowtie2, samtools
 
 ACKNOWLEDGMENTS:
 		Sean Beagle - Provided basic alignment workflow
-		This pipeline has been passed through the department - many people to acknowledge
-		Unclear who the original author was
 '''
 
 # IMPORT FROM PYTHON STANDARD LIBRARY
@@ -439,6 +438,7 @@ def run_pipeline(args, basename, reference, read_arr):
 	
 
 	# FILTER VCF
+	'''
 	try:
 		LOG.info("FILTERING VCF FILE...")
 		#script = "/Strong/proj/shared_code/filter_cf_file_4x_depth.pl"
@@ -451,6 +451,7 @@ def run_pipeline(args, basename, reference, read_arr):
 	except Exception as e:
 		LOG.warning(f"... FAILED : {e}")
 		exit(e)
+	'''
 
 
 	# EXTRACT VARS
@@ -509,7 +510,7 @@ def run_pipeline(args, basename, reference, read_arr):
 	try:
 		LOG.info("CALCULATING VARIANT RATE...")
 		# Count genome length
-		f = open(args.reference_sequence, 'r')
+		f = open(args.reference, 'r')
 		bases = 0
 		for line in f:
 			if line.startswith('>'):
@@ -564,7 +565,7 @@ def report_stats(args, aR, vR):
 	f1.close()
 
 
-def main(program):
+def main():
 	cwd = os.getcwd()
 
 	# PARSER : ROOT
@@ -582,11 +583,11 @@ def main(program):
 	parent_parser.add_argument('-r', '--reference', default=None, help='Reference sequence', type=str)
 	#parent_parser.add_argument('-rate', '--report_rate', default=False, action='store_true', help='Return the alignment rate')
 	parent_parser.add_argument('-s', '--savename', default='report', help='Savename for report file.')	
-	subparsers = parent_parser.add_subparsers(help='sub-command help')
+	#subparsers = parent_parser.add_subparsers(help='sub-command help')
 
 	args = parent_parser.parse_args()
 
-	reference = Fasta(args.reference_sequence)
+	reference = Fasta(args.reference)
 	ref_id = reference.filename.split('.')[0]
 
 
@@ -624,7 +625,7 @@ def main(program):
 
 
 if __name__== "__main__":
-	main(sys.argv[1])
+	main()
 
 
 
