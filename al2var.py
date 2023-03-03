@@ -317,13 +317,12 @@ def run_subprocess(args, command):
 	process.wait()
 
 
-
 def run_pipeline(args, basename, reference, read_arr):
 	
 	# DIRECTORIES
 	bam_dir = OUTDIR.make_subdir("bam")
 	fq_dir = OUTDIR.make_subdir("unconc")
-	#index_dir = OUTDIR.make_subdir("indexes")
+	index_dir = OUTDIR.make_subdir("indexes")
 	mpileup_dir = OUTDIR.make_subdir("mpileup")
 	sam_dir = OUTDIR.make_subdir("sam")
 	vcf_dir = OUTDIR.make_subdir("vcf")
@@ -335,12 +334,11 @@ def run_pipeline(args, basename, reference, read_arr):
 	sorted_bam_file = bam_file.replace("_000.bam", "_SORTED.bam")
 	mpileup_file = mpileup_dir.join(f"{basename}.mpileup")
 	vcf_file = vcf_dir.join(f"{basename}_000.vcf")
-	filtered_vcf_file = vcf_file.replace("_000.vcf", "_FILTERED.vcf")
+	#filtered_vcf_file = vcf_file.replace("_000.vcf", "_FILTERED.vcf")
 	var_vcf_file = vcf_file.replace("_000.vcf", "_var.vcf")
 
 	
 	# MAP ASSEMBLY TO REFERENCE (CREATE SAM FILE)
-	
 	LOG.info("MAPPING TO REFERENCE GENOME...")
 	try:
 		num_mm = str(args.num_mismatch)
@@ -437,23 +435,6 @@ def run_pipeline(args, basename, reference, read_arr):
 		exit(e)
 	
 
-	# FILTER VCF
-	'''
-	try:
-		LOG.info("FILTERING VCF FILE...")
-		#script = "/Strong/proj/shared_code/filter_cf_file_4x_depth.pl"
-		script = "filter_cf_file_4x_depth.pl"
-		command = ['perl', script, '-i', vcf_file, '-o', filtered_vcf_file]
-
-		# Run subprocess
-		run_subprocess(args, command)
-		LOG.info('... DONE')
-	except Exception as e:
-		LOG.warning(f"... FAILED : {e}")
-		exit(e)
-	'''
-
-
 	# EXTRACT VARS
 	try:
 		LOG.info("EXTRACTING VARS FROM VCF FILE...")
@@ -526,6 +507,16 @@ def run_pipeline(args, basename, reference, read_arr):
 	except Exception as e:
 		LOG.warning(f"... FAILED : {e}")
 		exit(e)
+	
+
+	if args.cleanup:
+		dirList = [fq_dir, mpileup_dir, sam_dir, index_dir]
+		if not args.keep_bam:
+			dirList.append(bam_dir)
+
+		for d in dirList:
+			cmd = ' '.join(('rm -r', d.path))
+			os.system(cmd)
 
 	return(v)
 
@@ -572,7 +563,8 @@ def main():
 	parent_parser = argparse.ArgumentParser(prog='al2var', add_help=False)
 	parent_parser.add_argument('-1', '--pair1', help='fwd trimmed paired-end reads to assemble', required=True)
 	parent_parser.add_argument('-2', '--pair2', help='rev trimmed paired-end reads to assemble', required=True)
-	parent_parser.add_argument('-c', '--clearnup', help='Enable automatic clearnup of intermediary files', default=False, action='store_true')
+	parent_parser.add_argument('-b', '--keep_bam', help='Do no remove bam files during cleanup step. Only usable with -c flag', default=False, action='store_true')
+	parent_parser.add_argument('-c', '--cleanup', help='Enable automatic cleanup of intermediary files', default=False, action='store_true')
 	parent_parser.add_argument('-l', '--length_seed', default=22, help='Sets length of seed. Smaller values increase sensitivity and runtime', type=int)
 	#parent_parser.add_argument('-mk_off', '--make_db_off', default=False, action='store_true', help='Disable make Bowtie database function.')
 	#parent_parser.add_argument('-mod', '--module_load', default=False, action='store_true', help='Enable module load function.')
