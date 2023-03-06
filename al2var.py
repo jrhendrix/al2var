@@ -317,7 +317,7 @@ def run_subprocess(args, command):
 	process.wait()
 
 
-def run_pipeline(args, basename, reference, read_arr):
+def run_pipeline(args, program, basename, reference, read_arr):
 	
 	# DIRECTORIES
 	bam_dir = OUTDIR.make_subdir("bam")
@@ -347,7 +347,7 @@ def run_pipeline(args, basename, reference, read_arr):
 		LOG.info(f'\tNumber of mismatches allowed:\t{num_mm}')
 		LOG.info(f'\tLength of seed sequence:     \t{len_seed}')
 
-		if len(read_arr) == 2:
+		if program == 'bowtie2' and len(read_arr) == 2:
 			pair1 = read_arr[0]
 			pair2 = read_arr[1]
 
@@ -358,7 +358,8 @@ def run_pipeline(args, basename, reference, read_arr):
 			"-S", sam_file,
 			"-N", num_mm,
 			"-L", len_seed]
-		else:
+		'''
+		elif program == 'bowtie2' and len(read_arr) == 1:
 			reads = read_arr[0]
 			command = [
 			"bowtie2", "-x", REFDIR.path, "-U", 
@@ -366,7 +367,8 @@ def run_pipeline(args, basename, reference, read_arr):
 			"-S", sam_file,
 			"-N", num_mm,
 			"-L", len_seed]	
-		#print(command)
+		'''
+
 		run_subprocess(args, command)
 		LOG.info('... DONE')
 	except Exception as e:
@@ -554,15 +556,64 @@ def report_stats(args, aR, vR):
 	f1.write(entry)
 
 	f1.close()
+	
+
+def bowtie2(args, command):
+	# SET UP REFERENCE
+	reference = Fasta(args.reference)
+	ref_id = reference.filename.split('.')[0]
+
+	# HANDLE PAIRED READS
+	pair1 = Fastq(args.pair1)
+	pair2 = Fastq(args.pair2)
+	samp_id = pair1.filename.split('-pair1')[0]
+	sample_arr = [pair1, pair2]
+
+	# CONFIGURE
+	basename, LOG_File = configure(args, ref_id, samp_id)
+	LOG.info(f'REFERENCE : {reference.filename}')
+	LOG.info(f'SAMPLE FWD: {pair1.filename}')
+	LOG.info(f'SAMPLE RVS: {pair2.filename}\n')
+
+	# SET UP REFERENCE
+	make_bowtie_db(args, reference, ref_id)
+
+	# RUN ALIGNMENT PIPELINE DATABASE
+	var_rate = run_pipeline(args, 'bowtie2', basename, reference, sample_arr)
+
+	# GET ALIGNMENT RATE
+	align_rate = return_align_rate(args, LOG_File)
+	
+	# REPORT STATS TO REPORT FILE
+	report_stats(args, align_rate, var_rate)
+
+def main(program):
+	command = 'Command: %s' % ' '.join(sys.argv)
+	print(f'Running: ', command)
+	#configure(args, command)
+		
+	args.func(args, command)
 
 
-def main():
+if __name__== "__main__":
+
 	cwd = os.getcwd()
 
+	parser = argparse.ArgumentParser(description='program description')
+	subparsers = parser.add_subparsers(dest="cmd", help='available actions')
+	#subparsers = parser.add_subparsers(title="build", dest="Build a de bruijn graph", help='available actions')
+	#subparsers = parser.add_subparsers(title="stat", dest="Get basic statistics", help='available actions')
+	subparsers.required = True
+
 	# PARSER : ROOT
+	__version__ = "0.0.0"
+	parser.add_argument('-v', '--version', action='version', version='%(prog)s {version}'.format(version=__version__))
+
+
+
+	# PARSER : ROOT
+	'''
 	parent_parser = argparse.ArgumentParser(prog='al2var', add_help=False)
-	parent_parser.add_argument('-1', '--pair1', help='fwd trimmed paired-end reads to assemble', required=True)
-	parent_parser.add_argument('-2', '--pair2', help='rev trimmed paired-end reads to assemble', required=True)
 	parent_parser.add_argument('-b', '--keep_bam', help='Do no remove bam files during cleanup step. Only usable with -c flag', default=False, action='store_true')
 	parent_parser.add_argument('-c', '--cleanup', help='Enable automatic cleanup of intermediary files', default=False, action='store_true')
 	parent_parser.add_argument('-l', '--length_seed', default=22, help='Sets length of seed. Smaller values increase sensitivity and runtime', type=int)
@@ -575,49 +626,31 @@ def main():
 	parent_parser.add_argument('-r', '--reference', default=None, help='Reference sequence', type=str)
 	#parent_parser.add_argument('-rate', '--report_rate', default=False, action='store_true', help='Return the alignment rate')
 	parent_parser.add_argument('-s', '--savename', default='report', help='Savename for report file.')	
-	#subparsers = parent_parser.add_subparsers(help='sub-command help')
-
-	args = parent_parser.parse_args()
-
-	reference = Fasta(args.reference)
-	ref_id = reference.filename.split('.')[0]
-
-
-	# HANDLE PAIRED READS
-	pair1 = Fastq(args.pair1)
-	pair2 = Fastq(args.pair2)
-	samp_id = pair1.filename.split('-pair1')[0]
-
-	# CONFIGURE
-	basename, LOG_File = configure(args, ref_id, samp_id)
-	LOG.info(f'REFERENCE : {reference.filename}')
-	LOG.info(f'SAMPLE FWD: {pair1.filename}')
-	LOG.info(f'SAMPLE RVS: {pair2.filename}\n')
-
-	# COLLECT SAMPLES
-	sample_arr = [pair1, pair2]
-
-
-	# SET UP REFERENCE
-	# TODO: allow the option to turn off make db for each.
-	make_bowtie_db(args, reference, ref_id)
-
-
-	# RUN ALIGNMENT PIPELINE
-	var_rate = run_pipeline(args, basename, reference, sample_arr)
-
-	#if args.report_rate == True:
-	align_rate = return_align_rate(args, LOG_File)
-	#	LOG.info(f'ALIGNMENT RATE: {align_rate}')
+	subparsers = parent_parser.add_subparsers(help='sub-command help')
+	'''
 	
-	report_stats(args, align_rate, var_rate)
+	# DEFINE SUBPARSERS
+	parser_bowtie2 = subparsers.add_parser('bowtie2')
+	parser_bowtie2.set_defaults(func=bowtie2)
 
-	## TO DO
-	# CLEAN UP INTERMEDIARY FILES
+	# PARSER : BOWTIE2
+	#bowtie = subparsers.add_parser('bowtie2', help='Align paired-end Illumina reads to reference', parents=[parent_parser])
+	parser_bowtie2.add_argument('-1', '--pair1', help='fwd trimmed paired-end reads to assemble', required=True)
+	parser_bowtie2.add_argument('-2', '--pair2', help='rev trimmed paired-end reads to assemble', required=True)
+	parser_bowtie2.add_argument('-b', '--keep_bam', help='Do no remove bam files during cleanup step. Only usable with -c flag', default=False, action='store_true')
+	parser_bowtie2.add_argument('-c', '--cleanup', help='Enable automatic cleanup of intermediary files', default=False, action='store_true')
+	parser_bowtie2.add_argument('-l', '--length_seed', default=22, help='Sets length of seed. Smaller values increase sensitivity and runtime', type=int)
+	parser_bowtie2.add_argument('-n', '--num_mismatch', default=0, help='Number of mismatches allowed in the seed sequence. Setting to 1 increases sensitivity and runtime', choices=['0','1'])
+	parser_bowtie2.add_argument('-o', '--output_directory', default='out_al2var', help='Prefix of output directory', type=str)
+	parser_bowtie2.add_argument('-p', '--output_path', default=cwd, help='Path to output', type=str)
+	parser_bowtie2.add_argument('-r', '--reference', default=None, help='Reference sequence', type=str)
+	parser_bowtie2.add_argument('-s', '--savename', default='report', help='Savename for report file.')	
 
 
-if __name__== "__main__":
-	main()
+
+	args = parser.parse_args()
+
+	main(args)
 
 
 
