@@ -317,7 +317,7 @@ def run_subprocess(args, command):
 	process.wait()
 
 
-def run_pipeline(args, program, basename, reference, read_arr):
+def run_pipeline(args, program, basename, reference, samp_arr):
 	
 	# DIRECTORIES
 	bam_dir = OUTDIR.make_subdir("bam")
@@ -337,19 +337,22 @@ def run_pipeline(args, program, basename, reference, read_arr):
 	#filtered_vcf_file = vcf_file.replace("_000.vcf", "_FILTERED.vcf")
 	var_vcf_file = vcf_file.replace("_000.vcf", "_var.vcf")
 
+	print(sam_file)
 	
 	# MAP ASSEMBLY TO REFERENCE (CREATE SAM FILE)
 	LOG.info("MAPPING TO REFERENCE GENOME...")
 	try:
-		num_mm = str(args.num_mismatch)
-		len_seed = str(args.length_seed)
-
-		LOG.info(f'\tNumber of mismatches allowed:\t{num_mm}')
-		LOG.info(f'\tLength of seed sequence:     \t{len_seed}')
+		
 
 		if program == 'bowtie2' and len(read_arr) == 2:
-			pair1 = read_arr[0]
-			pair2 = read_arr[1]
+			num_mm = str(args.num_mismatch)
+			len_seed = str(args.length_seed)
+
+			LOG.info(f'\tNumber of mismatches allowed:\t{num_mm}')
+			LOG.info(f'\tLength of seed sequence:     \t{len_seed}')
+
+			pair1 = samp_arr[0]
+			pair2 = samp_arr[1]
 
 			command = [
 			"bowtie2", "-x", REFDIR.path, 
@@ -357,7 +360,35 @@ def run_pipeline(args, program, basename, reference, read_arr):
 			"--un-conc", fq_file, 
 			"-S", sam_file,
 			"-N", num_mm,
-			"-L", len_seed]
+			"-L", len_seed
+			]
+
+			run_subprocess(args, command)
+
+		elif program == 'minimap2':
+			print(reference.path)
+			
+			samp = samp_arr[0]
+			print(samp.path)
+			command = [
+			"minimap2", "-ax", "asm5",
+			"-o", sam_file, 
+			reference.path, samp.path
+			]
+			#process = subprocess.Popen(command, stdout=PIPE, stderr=PIPE)
+			#stdout = process.stdout
+			#stderr = process.stderr
+			#f = open(sam_file, 'w')
+			#if stdout != None:
+			#	for line in stdout:
+			#		l = ''.join((str(line).split("'")[1][:-2], '\n'))
+			#		l = l.replace('\\t', '\t')
+			#		f.write(l)
+			#f.close()
+
+			run_subprocess(args, command)
+
+
 		'''
 		elif program == 'bowtie2' and len(read_arr) == 1:
 			reads = read_arr[0]
@@ -369,12 +400,11 @@ def run_pipeline(args, program, basename, reference, read_arr):
 			"-L", len_seed]	
 		'''
 
-		run_subprocess(args, command)
+		
 		LOG.info('... DONE')
 	except Exception as e:
 		LOG.warning(f"... FAILED : {e}")
 		exit(e)
-	
 
 
 	
@@ -520,7 +550,7 @@ def run_pipeline(args, program, basename, reference, read_arr):
 			cmd = ' '.join(('rm -r', d.path))
 			os.system(cmd)
 
-	return(v)
+	return(numVar, v)
 
 
 def return_align_rate(args, LOG_File):
@@ -536,7 +566,7 @@ def return_align_rate(args, LOG_File):
 	return alignRate
 
 
-def report_stats(args, aR, vR):
+def report_stats(args, aR, nV, vR):
 	fname = '.'.join((args.savename, 'txt'))
 	outfile = '/'.join((OUTDIR.path, fname))
 	f1 = open(outfile, 'w')
@@ -546,6 +576,13 @@ def report_stats(args, aR, vR):
 	else:
 		val = 'Could not be calculated'
 	entry = ' '.join(('Alignment rate:', val))+'\n'
+	f1.write(entry)
+
+	if nV is not None:
+		val = str(nV).strip().split(' ')[0]
+	else:
+		val = 'Could not be calculated'
+	entry = ' '.join(('Number of variants:', val))+'\n'
 	f1.write(entry)
 
 	if vR is not None:
@@ -579,13 +616,47 @@ def bowtie2(args, command):
 	make_bowtie_db(args, reference, ref_id)
 
 	# RUN ALIGNMENT PIPELINE DATABASE
-	var_rate = run_pipeline(args, 'bowtie2', basename, reference, sample_arr)
+	num_vars, var_rate = run_pipeline(args, 'bowtie2', basename, reference, sample_arr)
 
 	# GET ALIGNMENT RATE
 	align_rate = return_align_rate(args, LOG_File)
 	
 	# REPORT STATS TO REPORT FILE
-	report_stats(args, align_rate, var_rate)
+	report_stats(args, align_rate, num_vars, var_rate)
+
+def minimap2(args, command):
+	# SET UP REFERENCE
+	reference = Fasta(args.reference)
+	ref_id = reference.filename.split('.')[0]
+
+	# HANDLE PAIRED READS
+	#pair1 = Fastq(args.pair1)
+	#pair2 = Fastq(args.pair2)
+	#samp_id = pair1.filename.split('-pair1')[0]
+	samp = Fasta(args.query)
+	samp_id = samp.filename.split('.f')[0]
+	sample_arr = [samp]
+	#sample_arr = [pair1, pair2]
+
+	# CONFIGURE
+	basename, LOG_File = configure(args, ref_id, samp_id)
+	LOG.info(f'REFERENCE : {reference.filename}')
+	LOG.info(f'QUERY     : {samp.filename}')
+	#LOG.info(f'SAMPLE FWD: {pair1.filename}')
+	#LOG.info(f'SAMPLE RVS: {pair2.filename}\n')
+
+	# SET UP REFERENCE
+	make_bowtie_db(args, reference, ref_id)
+
+	# RUN ALIGNMENT PIPELINE DATABASE
+	num_vars, var_rate = run_pipeline(args, 'minimap2', basename, reference, sample_arr)
+
+	# GET ALIGNMENT RATE
+	#align_rate = return_align_rate(args, LOG_File)
+	align_rate = 'NA'
+	
+	# REPORT STATS TO REPORT FILE
+	report_stats(args, align_rate, num_vars, var_rate)
 
 def main(program):
 	command = 'Command: %s' % ' '.join(sys.argv)
@@ -633,6 +704,10 @@ if __name__== "__main__":
 	parser_bowtie2 = subparsers.add_parser('bowtie2')
 	parser_bowtie2.set_defaults(func=bowtie2)
 
+	parser_minimap2 = subparsers.add_parser('minimap2')
+	parser_minimap2.set_defaults(func=minimap2)
+
+
 	# PARSER : BOWTIE2
 	#bowtie = subparsers.add_parser('bowtie2', help='Align paired-end Illumina reads to reference', parents=[parent_parser])
 	parser_bowtie2.add_argument('-1', '--pair1', help='fwd trimmed paired-end reads to assemble', required=True)
@@ -646,6 +721,16 @@ if __name__== "__main__":
 	parser_bowtie2.add_argument('-r', '--reference', default=None, help='Reference sequence', type=str)
 	parser_bowtie2.add_argument('-s', '--savename', default='report', help='Savename for report file.')	
 
+	# PARSER : minimap2
+	parser_minimap2.add_argument('-b', '--keep_bam', help='Do no remove bam files during cleanup step. Only usable with -c flag', default=False, action='store_true')
+	parser_minimap2.add_argument('-c', '--cleanup', help='Enable automatic cleanup of intermediary files', default=False, action='store_true')
+	#parser_minimap2.add_argument('-l', '--length_seed', default=22, help='Sets length of seed. Smaller values increase sensitivity and runtime', type=int)
+	#parser_minimap2.add_argument('-n', '--num_mismatch', default=0, help='Number of mismatches allowed in the seed sequence. Setting to 1 increases sensitivity and runtime', choices=['0','1'])
+	parser_minimap2.add_argument('-o', '--output_directory', default='out_al2var', help='Prefix of output directory', type=str)
+	parser_minimap2.add_argument('-p', '--output_path', default=cwd, help='Path to output', type=str)
+	parser_minimap2.add_argument('-q', '--query', help='Query sequence to align to reference', required=True)
+	parser_minimap2.add_argument('-r', '--reference', default=None, help='Reference sequence', type=str)
+	parser_minimap2.add_argument('-s', '--savename', default='report', help='Savename for report file.')	
 
 
 	args = parser.parse_args()
