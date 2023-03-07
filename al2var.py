@@ -344,7 +344,7 @@ def run_pipeline(args, program, basename, reference, samp_arr):
 	try:
 		
 
-		if program == 'bowtie2' and len(read_arr) == 2:
+		if program == 'bowtie2' and len(samp_arr) == 2:
 			num_mm = str(args.num_mismatch)
 			len_seed = str(args.length_seed)
 
@@ -390,8 +390,8 @@ def run_pipeline(args, program, basename, reference, samp_arr):
 
 
 		'''
-		elif program == 'bowtie2' and len(read_arr) == 1:
-			reads = read_arr[0]
+		elif program == 'bowtie2' and len(samp_arr) == 1:
+			reads = samp_arr[0]
 			command = [
 			"bowtie2", "-x", REFDIR.path, "-U", 
 			reads.path, 
@@ -646,7 +646,7 @@ def minimap2(args, command):
 	#LOG.info(f'SAMPLE RVS: {pair2.filename}\n')
 
 	# SET UP REFERENCE
-	make_bowtie_db(args, reference, ref_id)
+	#make_bowtie_db(args, reference, ref_id)
 
 	# RUN ALIGNMENT PIPELINE DATABASE
 	num_vars, var_rate = run_pipeline(args, 'minimap2', basename, reference, sample_arr)
