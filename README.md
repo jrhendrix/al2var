@@ -8,9 +8,10 @@ A tool to estimate the error rate of a bacterial assembly using paired-end Illum
 ## Getting Started
 ### Requirements
 * Python
-* bowtie2
 * bcftools
 * samtools
+* bowtie2
+* minimap2
 
 ### Installation
 Clone from GitHub repository. If accessing code from GitHub, it is reccomended but not required to install dependencies in a conda environment.
