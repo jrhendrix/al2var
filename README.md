@@ -1,8 +1,9 @@
 # Al2var
 
-al2var is a tool to find variants between a reference and either paired end reads or another sequence. 
+al2var is a tool to find variants between a reference and either paired-end reads or another genome sequence. 
 
 ## Introduction
+al2var aligns query data to a refence using either bowtie2 or minimap2 and assess the mappings to determine the number of variants and the overall variant rate. When aligning one genome to another (minimap2 mode), al2var detects the differences between the genomes. When aligning paired-end Illumina reads to a reference assembly of the same sample, the variants can be interpretted as errors in the assembly and be used to estimate the assembly error rate.
 
 
 ## Getting Started
