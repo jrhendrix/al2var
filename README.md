@@ -38,9 +38,9 @@ Regardless of mode, al2var requires a reference sequence in `fasta` format (any 
 When using paired-end reads, al2var aligns the reads to the reference using bowtie2. The paired-end reads must be in `fastq` format and can be zipped or not.
 
 Basic usage:
-'''
+```
 al2var bowtie2 -r reference.fasta -1 illumina_raeds_pair1.fastq.gz -2 illumina_reads_pair2.fastq.gz
-'''
+```
 
 By default, the bowtie2 alignment step will use a seed sequence of 22bp and will not allow any mismatches in the seed sequence. The lenth of the seed sequence can be modified with the `-l` or `--length_seed` flag and the number of permitted mismatches can be increased to 1 using the `-n` or `--num_mismatch` flag. Increasing the number of possible mismatches in the seed sequence increases sensitivity but at the expense of runntime and it it is not recommended to allow for more than 1 mismatch.
 
