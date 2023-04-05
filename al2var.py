@@ -21,10 +21,6 @@ import sys
 
 from subprocess import Popen, PIPE
 
-# IMPORT FROM PROJECT LIBRARY
-#from handler import Dir, File, Fasta, Fastq
-
-
 class Dir:
 	""" Base class for system directories """
 
@@ -275,14 +271,10 @@ def make_bowtie_db(args, reference, ref_id):
 	''' Set up reference directory '''
 
 	LOG.info("BUILDING BOWTIE DATABASE...")
-	#ref_path = '/'.join((REFDIR.path, REFDIR.dirname))
-	#scratch = REFDIR.make_subdir("bowtie2", REFDIR.dirname)
-	#ref_path = ref.path
 
 
 	# MAKE BOWTIE DB
 	try:
-		#outpath = '/'.join((REFDIR.path, ref_id))
 		command = ["bowtie2-build", reference.path, REFDIR.path]
 		process = subprocess.run(command, capture_output=True)
 		if process.returncode == 0:
@@ -375,32 +367,9 @@ def run_pipeline(args, program, basename, reference, samp_arr):
 			"-o", sam_file, 
 			reference.path, samp.path
 			]
-			#process = subprocess.Popen(command, stdout=PIPE, stderr=PIPE)
-			#stdout = process.stdout
-			#stderr = process.stderr
-			#f = open(sam_file, 'w')
-			#if stdout != None:
-			#	for line in stdout:
-			#		l = ''.join((str(line).split("'")[1][:-2], '\n'))
-			#		l = l.replace('\\t', '\t')
-			#		f.write(l)
-			#f.close()
 
 			run_subprocess(args, command)
 
-
-		'''
-		elif program == 'bowtie2' and len(samp_arr) == 1:
-			reads = samp_arr[0]
-			command = [
-			"bowtie2", "-x", REFDIR.path, "-U", 
-			reads.path, 
-			"-S", sam_file,
-			"-N", num_mm,
-			"-L", len_seed]	
-		'''
-
-		
 		LOG.info('... DONE')
 	except Exception as e:
 		LOG.warning(f"... FAILED : {e}")
@@ -431,6 +400,7 @@ def run_pipeline(args, program, basename, reference, samp_arr):
 
 
 	# INDEX SORTED BAM FILE
+	## NOTE: is this step necessary?
 	try:
 		LOG.info("INDEXING SORTED BAM FILE...")
 		command = ['samtools', 'index', sorted_bam_file]
@@ -508,12 +478,8 @@ def run_pipeline(args, program, basename, reference, samp_arr):
 				f.write(l)
 		f.close()
 
-		#process2.stdout.close()
-		#process2.wait()
 		LOG.info(f"\tNUMBER OF VARIANTS: {numVar}")
 		LOG.info('... DONE')
-		
-
 	except Exception as e:
 		LOG.warning(f"... FAILED : {e}")
 		exit(e)
@@ -630,29 +596,19 @@ def minimap2(args, command):
 	ref_id = reference.filename.split('.')[0]
 
 	# HANDLE PAIRED READS
-	#pair1 = Fastq(args.pair1)
-	#pair2 = Fastq(args.pair2)
-	#samp_id = pair1.filename.split('-pair1')[0]
 	samp = Fasta(args.query)
 	samp_id = samp.filename.split('.f')[0]
 	sample_arr = [samp]
-	#sample_arr = [pair1, pair2]
 
 	# CONFIGURE
 	basename, LOG_File = configure(args, ref_id, samp_id)
 	LOG.info(f'REFERENCE : {reference.filename}')
 	LOG.info(f'QUERY     : {samp.filename}')
-	#LOG.info(f'SAMPLE FWD: {pair1.filename}')
-	#LOG.info(f'SAMPLE RVS: {pair2.filename}\n')
-
-	# SET UP REFERENCE
-	#make_bowtie_db(args, reference, ref_id)
 
 	# RUN ALIGNMENT PIPELINE DATABASE
 	num_vars, var_rate = run_pipeline(args, 'minimap2', basename, reference, sample_arr)
 
 	# GET ALIGNMENT RATE
-	#align_rate = return_align_rate(args, LOG_File)
 	align_rate = 'NA'
 	
 	# REPORT STATS TO REPORT FILE
@@ -672,33 +628,11 @@ if __name__== "__main__":
 
 	parser = argparse.ArgumentParser(description='program description')
 	subparsers = parser.add_subparsers(dest="cmd", help='available actions')
-	#subparsers = parser.add_subparsers(title="build", dest="Build a de bruijn graph", help='available actions')
-	#subparsers = parser.add_subparsers(title="stat", dest="Get basic statistics", help='available actions')
 	subparsers.required = True
 
 	# PARSER : ROOT
 	__version__ = "0.0.0"
 	parser.add_argument('-v', '--version', action='version', version='%(prog)s {version}'.format(version=__version__))
-
-
-
-	# PARSER : ROOT
-	'''
-	parent_parser = argparse.ArgumentParser(prog='al2var', add_help=False)
-	parent_parser.add_argument('-b', '--keep_bam', help='Do no remove bam files during cleanup step. Only usable with -c flag', default=False, action='store_true')
-	parent_parser.add_argument('-c', '--cleanup', help='Enable automatic cleanup of intermediary files', default=False, action='store_true')
-	parent_parser.add_argument('-l', '--length_seed', default=22, help='Sets length of seed. Smaller values increase sensitivity and runtime', type=int)
-	#parent_parser.add_argument('-mk_off', '--make_db_off', default=False, action='store_true', help='Disable make Bowtie database function.')
-	#parent_parser.add_argument('-mod', '--module_load', default=False, action='store_true', help='Enable module load function.')
-	parent_parser.add_argument('-n', '--num_mismatch', default=0, help='Number of mismatches allowed in the seed sequence. Setting to 1 increases sensitivity and runtime', choices=['0','1'])
-	parent_parser.add_argument('-o', '--output_directory', default='out_al2var', help='Prefix of output directory', type=str)
-	parent_parser.add_argument('-p', '--output_path', default=cwd, help='Path to output', type=str)
-	#parent_parser.add_argument('-ref_dir', '--reference_directory', default=None, help='Reference Directory', type=str)
-	parent_parser.add_argument('-r', '--reference', default=None, help='Reference sequence', type=str)
-	#parent_parser.add_argument('-rate', '--report_rate', default=False, action='store_true', help='Return the alignment rate')
-	parent_parser.add_argument('-s', '--savename', default='report', help='Savename for report file.')	
-	subparsers = parent_parser.add_subparsers(help='sub-command help')
-	'''
 	
 	# DEFINE SUBPARSERS
 	parser_bowtie2 = subparsers.add_parser('bowtie2')
