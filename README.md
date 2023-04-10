@@ -3,7 +3,12 @@
 al2var is a tool to find variants between a bacterial genome sequence and either paired-end reads or another genome sequence. al2var can also estimate the number of errors in the assembly.
 
 ## Introduction
-al2var aligns query data to a reference using either bowtie2 or minimap2 and processes the resulting mappings to determine the number of variants and the overall variant rate. When aligning paired-end Illumina reads (bowtie2 mode) to the given assembly of the same sample, the variants can be interpretted as errors in the assembly and be used to estimate the assembly error rate de novo. When aligning two genomes (minimap2 modde), al2var detects the variants. If ond of the genomes is a trusted representive of the species, the variant rate could be interpretted as the error rate of the assembly though this interpretation is not recomended if the species is diverse.
+The primary purpose of al2var is to align either paired-end reads or a genome assembly to a given sequence. Al2var aligns the input using either Bowtie2 (paired-end reads) or minimap2 (genome sequence) then interprets the mappings to determine the number of variants and the variant rate. 
+Al2var can also be used to estimate the number of errors in an assembly. 
+
+In reference-based error analysis, a sample is compared to a trusted representative of the same species to identify variants. Either genome could be used as the reference or the query for al2var, but the error rate will be normalized to the length of the reference. This application is not recommended for species that are diverse or that lack a sufficiently close and trusted representative sequence because true variants may be misinterpreted as errors.
+
+Errors could also be estimated without a species representative using the al2var bowtie2 mode, where paired-end reads are aligned to a given genome assembly and the variants are interpreted as errors. The paired-end approach to estimating errors requires that the genome and paired-end reads originated from the same sample. In addition, this method assumes that the consensus of multiple Illumina reads at a given location are correct. Though highly accurate, Illumina reads are not impervious to errors (Laehnemann, 2016) so this method is meant to provide an error estimate. To reduce the number of false positives, trim low quality ends off of Illumina reads and use higher read coverage. 
 
 
 ## Getting Started
