@@ -1,6 +1,6 @@
 # Al2var
 
-al2var is a tool to find variants between a bacterial genome sequence and either paired-end reads or another genome sequence. al2var can also estimate the number of errors in the assembly.
+al2var identifies variants and caclulates the variant rate between a bacterial genome sequence and either paired-end reads or another genome sequence. al2var can also estimate the number of errors in the assembly.
 
 ## Introduction
 The primary purpose of al2var is to align either paired-end reads or a genome assembly to a given sequence. Al2var aligns the input using either Bowtie2 (paired-end reads) or minimap2 (genome sequence) then interprets the mappings to determine the number of variants and the variant rate. 
