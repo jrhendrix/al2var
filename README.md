@@ -29,7 +29,11 @@ al2var was specifically tested with
 
 
 ### Installation
-Clone from GitHub repository. If accessing code from GitHub, it is recommended but not required to install dependencies in a conda environment.
+al2var is available on [PyPI](https://pypi.org/project/roprokka/) and can be installed using pip.
+
+```pip install al2var```
+
+OR clone from GitHub repository. If accessing code from GitHub, it is recommended but not required to install dependencies in a conda environment.
 
 ## Output
 al2var will create a directory to organize all of the generated output in various subdirectories.
