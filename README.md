@@ -27,18 +27,20 @@ al2var was specifically tested with
 1. python v3.7.16, bcftools v1.9, samtools v1.6, bowtie2 v2.2.5, and minimap2 v2.21
 2. python v3.10.2, bcftools v1.14, samtools v1.14, bowtie2 v2.5.1, and minimap2 v2.24
 
-Creating a conda environment for Al2var
+
+### Installation
+It is recomended by not required to install al2var in a conda environment. 
+
+Creating a possible conda environment for al2var:
 ```
 conda create -n al2var python=3.10.2 bcftools=1.14 samtools=1.14 bowtie2=2.5.1 minimap2=2.24
 ```
 
-
-### Installation
 al2var is available on [PyPI](https://pypi.org/project/roprokka/) and can be installed using pip.
 
 ```pip install al2var```
 
-OR clone from GitHub repository. If accessing code from GitHub, it is recommended but not required to install dependencies in a conda environment.
+OR clone from GitHub repository.
 
 ## Output
 al2var will create a directory to organize all of the generated output in various subdirectories.
