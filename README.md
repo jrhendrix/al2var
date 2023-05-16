@@ -36,7 +36,7 @@ Creating a possible conda environment for al2var:
 conda create -n al2var python=3.10.2 bcftools=1.14 samtools=1.14 bowtie2=2.5.1 minimap2=2.24
 ```
 
-al2var is available on [PyPI](https://pypi.org/project/roprokka/) and can be installed using pip.
+al2var is available on [PyPI](https://pypi.org/project/al2var/) and can be installed using pip.
 
 ```pip install al2var```
 
