@@ -27,6 +27,11 @@ al2var was specifically tested with
 1. python v3.7.16, bcftools v1.9, samtools v1.6, bowtie2 v2.2.5, and minimap2 v2.21
 2. python v3.10.2, bcftools v1.14, samtools v1.14, bowtie2 v2.5.1, and minimap2 v2.24
 
+Creating a conda environment for Al2var
+```
+conda create -n al2var python=3.10.2 bcftools=1.14 samtools=1.14 bowtie2=2.5.1 minimap2=2.24
+```
+
 
 ### Installation
 al2var is available on [PyPI](https://pypi.org/project/roprokka/) and can be installed using pip.
